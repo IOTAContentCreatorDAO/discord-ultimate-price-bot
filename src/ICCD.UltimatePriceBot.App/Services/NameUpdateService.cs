@@ -127,14 +127,7 @@ public class NameUpdateService
                         var sb = new StringBuilder();
                         sb = sb.Append($"${priceEntry.CurrentPriceUsd.GetDisplayString("N4")} ");
 
-                        if (trend24HDown)
-                        {
-                            sb = sb.Append('⇘');
-                        }
-                        else
-                        {
-                            sb = sb.Append('⇗');
-                        }
+                        sb = trend24HDown ? sb.Append('⬊') : sb.Append('⬈');
                         sb.Append($"24H: {priceEntry.PriceChangePercentage24Hours.GetDisplayString("N2")}%");
                         // sb = sb.Append($" 24H: {priceEntry.PriceChangePercentage24Hours.GetDiscordString("N2")}%");
                         // if (trend24HDown)

@@ -38,7 +38,7 @@ public sealed class Program
 
         await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
-        // await services.GetRequiredService<NameUpdateService>().StartAsync();
+        await services.GetRequiredService<NameUpdateService>().StartAsync();
 
         await Task.Delay(Timeout.Infinite);
     }

@@ -19,6 +19,7 @@ namespace ICCD.UltimatePriceBot.App.Models
     /// </summary>
     public class PriceDataViewModel
     {
+        private readonly string _footerLine = "Data by CoinGecko.\nWith ❤️ by the ICCD and Pathin.";
         private decimal? _marketCapUsd;
 
         /// <summary>
@@ -154,22 +155,72 @@ namespace ICCD.UltimatePriceBot.App.Models
             return relationValue;
         }
 
+        public Embed ToConciseComboEmbed(params PriceDataViewModel[] others)
+        {
+            var allVms = new List<PriceDataViewModel>() { this };
+            if (others.Length < 1)
+            {
+                throw new ArgumentException("Must provide at least 1 other view model.");
+            }
+            allVms.AddRange(others);
+
+            var eb = new EmbedBuilder();
+            //.WithTitle("Token Prices");
+
+            var upOrDown = 0;
+            foreach (var vm in allVms)
+            {
+                upOrDown += vm.PriceChangePercentage1Hour < 0 ? -1 : 1;
+                var upDownArrow = vm.PriceChangePercentage1Hour < 0 ? '⬊' : '⬈';
+                var title = $"{upDownArrow} {vm.Name.Truncate(10)} #{vm.Rank.GetDisplayString()}";
+                var sbDescription = new StringBuilder();
+                sbDescription.AppendLine($"``Price: ${vm.CurrentPriceUsd.GetDisplayString("N4")}``");
+                sbDescription.AppendLine($"``1H: {vm.PriceChangePercentage1Hour.GetDisplayString("N2")}%``");
+                sbDescription.AppendLine($"``24H: {vm.PriceChangePercentage24Hours.GetDisplayString("N2")}%``");
+                sbDescription.AppendLine($"``MCAP: ${vm.MarketCapUsd.GetDisplayString("N2")}``");
+                // sbDescription.AppendLine($"``VOL: ${vm.TotalVolumeUsd.GetDisplayString("N2")}``");
+                var description = sbDescription.ToString();
+
+                eb = eb.WithFields(
+                    new EmbedFieldBuilder()
+                    .WithName(title)
+                    .WithValue(description)
+                    .WithIsInline(true));
+            }
+
+            eb = eb.WithFooter(_footerLine);
+            if (upOrDown < 0)
+            {
+                eb = eb.WithColor(Color.Red);
+            }
+            else if (upOrDown > 0)
+            {
+                eb = eb.WithColor(Color.Green);
+            }
+            else
+            {
+                eb = eb.WithColor(Color.LightOrange);
+            }
+
+            return eb.Build();
+        }
+
         public Embed ToEmbed()
         {
             var eb = new EmbedBuilder()
             .WithTitle($"{Name} #{Rank.GetDisplayString()}")
             .WithColor(PriceChangePercentage1Hour < 0 ? Color.Red : Color.Green)
-            .WithFooter("Data by CoinGecko.\nWith ❤️ by the ICCD and Pathin.");
+            .WithFooter(_footerLine);
 
             /*.WithTimestamp(CreatedDate);*/
 
-            var priceChangeEmoji = PriceChangePercentage1Hour < 0 ? "📉" : "📈";
+            var priceChangeEmoji = PriceChangePercentage1Hour < 0 ? "⬊" : "⬈";
             eb = eb.AddField($"{priceChangeEmoji} Price: ${CurrentPriceUsd.GetDisplayString("N4")}", $"``High: ${HighestPriceUsd.GetDisplayString("N4")}``\n``Low:  ${LowestPriceUsd.GetDisplayString("N4")}``", true);
             eb = eb.AddField("% Change", $"``1h:  {PriceChangePercentage1Hour.GetDisplayString("N2")}%``\n``24h: {PriceChangePercentage24Hours.GetDisplayString("N2")}%``", true);
 
             /* eb = eb.AddField($"ATH: ${AthPriceUsd.GetEmbedString("N2")} ({PriceChangePercentageAth.GetEmbedString("N2")}%)", $"{AthDate.GetEmbedString()}", false);*/
-            eb = eb.AddField("Market Cap", $"${MarketCapUsd.GetDisplayString("N2")}", false);
-            eb = eb.AddField("Volume 24H", $"${TotalVolumeUsd.GetDisplayString("N2")}", true);
+            eb = eb.AddField("Market Cap", $"``${MarketCapUsd.GetDisplayString("N2")}``", false);
+            eb = eb.AddField("Volume 24H", $"``${TotalVolumeUsd.GetDisplayString("N2")}``", true);
 
             if (Relations.Count > 0)
             {

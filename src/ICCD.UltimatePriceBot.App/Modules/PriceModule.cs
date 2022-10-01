@@ -18,17 +18,9 @@ namespace ICCD.UltimatePriceBot.App.Modules;
 /// </summary>
 public class PriceModule : ModuleBase<SocketCommandContext>
 {
-    private const int _var = 0;
-    private static readonly Dictionary<string, DateTime> _lastPriceRequests = new();
-    private static readonly Dictionary<string, ICollection<string>> _aliases = new() {
-        { "iota", new string[] { "p", "pi", "rice", "🍚" } },
-        { "shimmer", new string[] { "pp", "ps", "sushi", "🍣" } },
-    };
-
+    private static readonly Dictionary<string, DateTime> _lastPriceRequests = new(StringComparer.InvariantCultureIgnoreCase);
     private readonly PriceDataService _priceDataService;
     private readonly NameUpdateService _nameUpdateService;
-    private string? _tokenOverride;
-    private bool _ignorePriceRequestLimit;
     private bool _skip;
 
     /// <summary>
@@ -71,10 +63,16 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     }
 
     [Command("pi", true)]
-    [Alias("p", "pp", "pi", "price", "rice", "🍚")]
+    [Alias("pp", "pi", "price", "rice", "🍚")]
     public async Task GetPriceForIotaTokenAsync()
     {
         await GetPriceForTokenAsync("iota");
+    }
+
+    [Command("p")]
+    public async Task GetComboPriceAsync()
+    {
+        await GetPriceForTokenAsync("iotasmr");
     }
 
     [Command("ps")]
@@ -108,38 +106,33 @@ public class PriceModule : ModuleBase<SocketCommandContext>
             Timeout = 50,
         };
 
-        if (_tokenOverride != null)
+        if (!_priceDataService.TokenExists(tokenName) && !tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
         {
-            tokenName = _tokenOverride;
+            _lastPriceRequests.TryGetValue(tokenName, out var lastPriceRequest);
+            if (DateTime.Now - lastPriceRequest < TimeSpan.FromSeconds(60))
+            {
+                _ = Context.Message.AddReactionAsync(!Context.Message.Author.Id.Equals(189498611690766336) ? new Emoji("😡") : new Emoji("❤️"), options);
+                return;
+            }
+
+            _lastPriceRequests[tokenName] = DateTime.Now;
+            _ = ReplyAsync($"<@{Context.User.Id}>", embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build());
+            return;
         }
 
         string tokenId;
-        if (tokenName == null)
+        if (tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
         {
             tokenId = "iotasmr";
         }
         else
         {
-            if (!_priceDataService.TokenExists(tokenName))
-            {
-                _lastPriceRequests.TryGetValue(tokenName, out var lastPriceRequest);
-                if (DateTime.Now - lastPriceRequest < TimeSpan.FromSeconds(60) && !_ignorePriceRequestLimit)
-                {
-                    _ = Context.Message.AddReactionAsync(!Context.Message.Author.Id.Equals(189498611690766336) ? new Emoji("😡") : new Emoji("❤️"), options);
-                    return;
-                }
-
-                _lastPriceRequests[tokenName] = DateTime.Now;
-                _ = ReplyAsync($"<@{Context.User.Id}>", embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build());
-                return;
-            }
-
             tokenId = _priceDataService.GetTokenId(tokenName);
         }
 
         _lastPriceRequests.TryGetValue(tokenId, out var lastPriceRequest2);
 
-        if (DateTime.Now - lastPriceRequest2 < TimeSpan.FromSeconds(30) && !_ignorePriceRequestLimit)
+        if (DateTime.Now - lastPriceRequest2 < TimeSpan.FromSeconds(30))
         {
             if (!Context.Message.Author.Id.Equals(189498611690766336))
             {
@@ -153,23 +146,19 @@ public class PriceModule : ModuleBase<SocketCommandContext>
             return;
         }
 
-        if (!_ignorePriceRequestLimit)
+        _lastPriceRequests[tokenId] = DateTime.Now;
+
+        if (tokenId == "iotasmr")
         {
-            _lastPriceRequests[tokenId] = DateTime.Now;
+            var priceIota = await _priceDataService.GetPriceDataAsync("iota");
+            var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
+            _ = ReplyAsync(embed: priceIota.ToConciseComboEmbed(priceSmr));
         }
-
-        // token is "iotasmr" let's display a concise combo embed.
-        if (tokenName == "iotasmr")
+        else
         {
-            _ignorePriceRequestLimit = true;
-            await GetPriceForTokenAsync("iota");
-            await GetPriceForTokenAsync("shimmer");
-            return;
+            var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
+            _ = ReplyAsync(embed: priceData.ToEmbed());
         }
-
-        var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
-
-        _ = ReplyAsync(embed: priceData.ToEmbed());
 
         if (Context.Message.Author.Id.Equals(189498611690766336))
         {

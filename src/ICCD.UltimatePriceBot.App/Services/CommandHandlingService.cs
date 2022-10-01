@@ -87,12 +87,12 @@ public class CommandHandlingService
                     response += " 😊";
                 }
 
-                if (adjective.Equals("Cute"))
+                if (actualAdjective.Equals("Cute"))
                 {
                     response += " ❤️";
                 }
 
-                if (adjective.Equals("Sexy"))
+                if (actualAdjective.Equals("Sexy"))
                 {
                     response += " 😈";
                 }
@@ -113,7 +113,7 @@ public class CommandHandlingService
     /// Called after a command was executed.
     /// </summary>
     /// <param name="command">The executed command.</param>
-    /// /// <param name="context">The command context.</param>
+    /// <param name="context">The command context.</param>
     /// <param name="result">The execution result.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     private async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)

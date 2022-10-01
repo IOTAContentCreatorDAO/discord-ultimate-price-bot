@@ -5,6 +5,7 @@
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
+using System.Collections.Immutable;
 using System.Reflection;
 using Discord;
 using Discord.Commands;
@@ -18,6 +19,8 @@ namespace ICCD.UltimatePriceBot.App.Services;
 /// </summary>
 public class CommandHandlingService
 {
+    private static readonly HashSet<string> _validAdjectives = new(StringComparer.InvariantCultureIgnoreCase) { "Sexy", "Cute", "Good" };
+
     private readonly CommandService _commands;
     private readonly DiscordSocketClient _discord;
     private readonly IServiceProvider _services;
@@ -63,7 +66,43 @@ public class CommandHandlingService
         }
 
         var argPos = 0;
-        message.HasMentionPrefix(_discord.CurrentUser, ref argPos);
+        if (message.HasMentionPrefix(_discord.CurrentUser, ref argPos))
+        {
+            var msg = message.Content[argPos..].Trim();
+            var msgSplt = msg.Split(' ');
+            var adjective = msgSplt[0];
+            var subject = msgSplt.Length > 1 ? msgSplt[1] : string.Empty;
+
+            if (_validAdjectives.Contains(adjective) && subject.Equals("bot", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _validAdjectives.TryGetValue(adjective, out var actualAdjective);
+                if (actualAdjective == null)
+                {
+                    return;
+                }
+
+                var response = $"<@{message.Author.Id}> {actualAdjective} Human!";
+                if (actualAdjective.Equals("Good"))
+                {
+                    response += " 😊";
+                }
+
+                if (adjective.Equals("Cute"))
+                {
+                    response += " ❤️";
+                }
+
+                if (adjective.Equals("Sexy"))
+                {
+                    response += " 😈";
+                }
+
+                var innerContext = new SocketCommandContext(_discord, message);
+                await innerContext.Channel.SendMessageAsync(response);
+
+                return;
+            }
+        }
 
         var context = new SocketCommandContext(_discord, message);
 

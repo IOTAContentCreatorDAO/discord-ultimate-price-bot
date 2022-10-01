@@ -1,7 +1,5 @@
 // <copyright file="PriceModule.cs" company="IOTA Content Creator DAO LLC">
 // Copyright (c) IOTA Content Creator DAO LLC 2022. All rights reserved.
-// Thanks to:
-// Patrick -Pathin- Fischer (pfischer@daobee.org)
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
@@ -31,7 +29,6 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     private readonly NameUpdateService _nameUpdateService;
     private string? _tokenOverride;
     private bool _ignorePriceRequestLimit;
-
     private bool _skip;
 
     /// <summary>
@@ -178,18 +175,6 @@ public class PriceModule : ModuleBase<SocketCommandContext>
         {
             _ = Context.Message.AddReactionAsync(new Emoji("❤️"), options);
         }
-    }
-
-    [Command("good bot", true)]
-    public async Task RespondGoodHumanToUser()
-    {
-        await ReplyAsync($"<@{Context.User.Id}> Good Human! ❤️");
-    }
-
-    [Command("sexy bot", true)]
-    public async Task RespondSexyHumanToUser()
-    {
-        await ReplyAsync($"<@{Context.User.Id}> Sexy Human! 😈");
     }
 
     /// <inheritdoc/>

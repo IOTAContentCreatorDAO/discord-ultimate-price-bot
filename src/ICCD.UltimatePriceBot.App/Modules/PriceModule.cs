@@ -8,6 +8,7 @@ using System.Reflection.Emit;
 using Discord;
 using Discord.Commands;
 using Discord.Rest;
+using ICCD.UltimatePriceBot.App.Extensions;
 using ICCD.UltimatePriceBot.App.Services;
 using Newtonsoft.Json;
 
@@ -110,7 +111,7 @@ public class PriceModule : ModuleBase<SocketCommandContext>
 
         if (string.IsNullOrEmpty(tokenName))
         {
-            _ = await ReplyAsync($"<@{Context.User.Id}>, please provide a token name.");
+            _ = await ReplyAsync($"Please provide a token name.", messageReference: Context.Message.ToReference());
             return;
         }
 
@@ -129,7 +130,7 @@ public class PriceModule : ModuleBase<SocketCommandContext>
             }
 
             _lastPriceRequests[tokenName] = DateTime.Now;
-            _ = ReplyAsync($"<@{Context.User.Id}>", embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build());
+            _ = ReplyAsync(embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build(), messageReference: Context.Message.ToReference());
             return;
         }
 
@@ -165,13 +166,13 @@ public class PriceModule : ModuleBase<SocketCommandContext>
         {
             var priceIota = await _priceDataService.GetPriceDataAsync("iota");
             var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
-            _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr));
+            _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr), messageReference: Context.Message.ToReference());
         }
         else
         {
             var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
             var embed = concise ? priceData.ToConciseEmbed() : priceData.ToEmbed();
-            _ = ReplyAsync(embed: embed);
+            _ = ReplyAsync(embed: embed, messageReference: Context.Message.ToReference());
         }
 
         if (Context.Message.Author.Id.Equals(189498611690766336))

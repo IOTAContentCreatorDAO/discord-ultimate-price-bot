@@ -4,8 +4,10 @@
 // </copyright>
 
 using System.Text.RegularExpressions;
+using Discord;
 using Discord.Commands;
 using ICCD.UltimatePriceBot.App.Attributes;
+using ICCD.UltimatePriceBot.App.Extensions;
 
 namespace ICCD.UltimatePriceBot.App.Modules;
 
@@ -27,7 +29,7 @@ public class FunModule : ModuleBase<SocketCommandContext>
     [Alias("cute", "sexy")]
     public async Task ComplimentBotAsync()
     {
-        if (!Context.Message.ReferencedMessage.Author.Id.Equals(Context.Client.CurrentUser.Id))
+        if (Context.Message.ReferencedMessage == null || !Context.Message.ReferencedMessage.Author.Id.Equals(Context.Client.CurrentUser.Id))
         {
             return;
         }
@@ -45,7 +47,7 @@ public class FunModule : ModuleBase<SocketCommandContext>
                 return;
             }
 
-            var response = $"<@{Context.Message.Author.Id}> {actualAdjective} Human!";
+            var response = $"{actualAdjective} Human!";
             if (actualAdjective.Equals("Good"))
             {
                 response += " 😊";
@@ -61,7 +63,7 @@ public class FunModule : ModuleBase<SocketCommandContext>
                 response += " 😈";
             }
 
-            await ReplyAsync(response);
+            await ReplyAsync(response, messageReference: Context.Message.ToReference());
 
             return;
         }

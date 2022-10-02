@@ -7,8 +7,8 @@ WIP: IOTA Server's New Price Bot
 ~~3: Finish Name And Status Change for Shimmie and IOTA price and rank. For Member List on the Right. (already working but not finished).~~  
 4: Make everything configurable via settings file and env variables  
 5: Code styling  
-~~6: Open Source that bot!~~
-7: Add Slash Commands and finish command type handling.
+~~6: Open Source that bot!~~  
+7: Add Slash Commands and finish command type handling.  
 8: ???  
 9: Profit  
 

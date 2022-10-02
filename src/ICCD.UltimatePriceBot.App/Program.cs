@@ -1,7 +1,5 @@
 // <copyright file="Program.cs" company="IOTA Content Creator DAO LLC">
 // Copyright (c) IOTA Content Creator DAO LLC 2022. All rights reserved.
-// Thanks to:
-// Patrick -Pathin- Fischer (pfischer@daobee.org)
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
@@ -22,8 +20,30 @@ public sealed class Program
     {
     }
 
+    /// <summary>
+    /// Gets a value indicating whether the app environment is development.
+    /// </summary>
+    public static bool IsDevelopment => false;
+
     private static void Main()
         => new Program().MainAsync().GetAwaiter().GetResult();
+
+    private static ServiceProvider ConfigureServices()
+    {
+        return new ServiceCollection()
+            .AddSingleton(new DiscordSocketConfig
+            {
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
+                AlwaysDownloadUsers = true,
+            })
+            .AddSingleton<DiscordSocketClient>()
+            .AddSingleton<CommandService>()
+            .AddSingleton<CommandHandlingService>()
+            .AddSingleton<HttpClient>()
+            .AddSingleton<NameUpdateService>()
+            .AddSingleton<PriceDataService>()
+            .BuildServiceProvider();
+    }
 
     private async Task MainAsync()
     {
@@ -48,22 +68,5 @@ public sealed class Program
         Console.WriteLine(log.ToString());
 
         return Task.CompletedTask;
-    }
-
-    private ServiceProvider ConfigureServices()
-    {
-        return new ServiceCollection()
-            .AddSingleton(new DiscordSocketConfig
-            {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
-                AlwaysDownloadUsers = true,
-            })
-            .AddSingleton<DiscordSocketClient>()
-            .AddSingleton<CommandService>()
-            .AddSingleton<CommandHandlingService>()
-            .AddSingleton<HttpClient>()
-            .AddSingleton<NameUpdateService>()
-            .AddSingleton<PriceDataService>()
-            .BuildServiceProvider();
     }
 }

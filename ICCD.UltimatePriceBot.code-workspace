@@ -1,11 +1,34 @@
 {
-	"folders": [
-		{
-			"path": "src/ICCD.UltimatePriceBot.App"
-		},
-		{
-			"path": "styles"
-		}
-	],
-	"settings": {}
+    "folders": [
+        {
+            "path": "src/ICCD.UltimatePriceBot.App"
+        },
+        {
+            "path": "styles"
+        }
+    ],
+    "settings": {
+        "omnisharp.enableImportCompletion": true,
+        "editor.formatOnType": true,
+        "editor.semanticTokenColorCustomizations": {}
+    },
+    "extensions": {
+        "recommendations": [
+            "aaron-bond.better-comments",
+            "kreativ-software.csharpextensions",
+            "adrianwilczynski.namespace",
+            "ms-dotnettools.csharp",
+            "adrianwilczynski.add-reference",
+            "naumovs.color-highlight",
+            "editorconfig.editorconfig",
+            "ms-azuretools.vscode-docker",
+            "fernandoescolar.vscode-solution-explorer",
+            "ms-vscode.vs-keybindings",
+            "christian-kohler.path-intellisense",
+            "aliasadidev.nugetpackagemanagergui",
+            "tintoy.msbuild-project-tools",
+            "ms-vsliveshare.vsliveshare-pack",
+            "eamodio.gitlens"
+        ]
+    }
 }

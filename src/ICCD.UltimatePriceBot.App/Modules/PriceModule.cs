@@ -62,30 +62,43 @@ public class PriceModule : ModuleBase<SocketCommandContext>
         }
     }
 
+    /// <summary>
+    /// Gets the price for IOTA.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("pi", true)]
-    [Alias("pp", "pi", "price", "rice", "🍚")]
+    [Alias("pi", "price", "rice", "🍚")]
     public async Task GetPriceForIotaTokenAsync()
     {
         await GetPriceForTokenAsync("iota");
     }
 
+    /// <summary>
+    /// Gets the price for IOTA and shimmer (concise).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("p")]
     public async Task GetComboPriceAsync()
     {
         await GetPriceForTokenAsync("iotasmr");
     }
 
+    /// <summary>
+    /// Gets the price for shimmer.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("ps")]
-    [Alias("ps", "sushi", "🍣")]
+    [Alias("pp", "ps", "sushi", "🍣")]
     public async Task GetPriceForShimmerTokenAsync()
     {
         await GetPriceForTokenAsync("shimmer");
     }
 
     /// <summary>
-    /// p.
+    /// Gets the price of a specific token.
     /// </summary>
     /// <param name="tokenName">Token to request the price for.</param>
+    /// <param name="concise">Whether the bot response should be concise.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("!price", true)]
     public async Task GetPriceForTokenAsync(string? tokenName = null, bool concise = false)
@@ -152,12 +165,13 @@ public class PriceModule : ModuleBase<SocketCommandContext>
         {
             var priceIota = await _priceDataService.GetPriceDataAsync("iota");
             var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
-            _ = ReplyAsync(embed: priceIota.ToConciseComboEmbed(priceSmr));
+            _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr));
         }
         else
         {
             var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
-            _ = ReplyAsync(embed: priceData.ToEmbed());
+            var embed = concise ? priceData.ToConciseEmbed() : priceData.ToEmbed();
+            _ = ReplyAsync(embed: embed);
         }
 
         if (Context.Message.Author.Id.Equals(189498611690766336))

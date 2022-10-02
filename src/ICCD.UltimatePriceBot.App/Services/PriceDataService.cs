@@ -1,5 +1,5 @@
-// <copyright file="PriceDataService.cs" company="IOTA Content Creators DAO LLC">
-// Copyright (c) IOTA Content Creators DAO LLC 2022. All rights reserved.
+// <copyright file="PriceDataService.cs" company="IOTA Content Creator DAO LLC">
+// Copyright (c) IOTA Content Creator DAO LLC 2022. All rights reserved.
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
@@ -22,7 +22,7 @@ public class PriceDataService
 
     private readonly Dictionary<string, string> _tokenLookupTable = new(StringComparer.InvariantCultureIgnoreCase);
 
-    private ReentrantAsyncLock.ReentrantAsyncLock _getPriceLock = new();
+    private readonly ReentrantAsyncLock.ReentrantAsyncLock _getPriceLock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceDataService"/> class.

@@ -4,7 +4,7 @@
             "path": "src/ICCD.UltimatePriceBot.App"
         },
         {
-            "path": "styles"
+            "path": "."
         }
     ],
     "settings": {

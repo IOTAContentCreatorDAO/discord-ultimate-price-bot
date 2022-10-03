@@ -37,7 +37,7 @@ public class FunModule : ModuleBase<SocketCommandContext>
         var msg = Regex.Replace(Context.Message.Content.Trim(), @"\s+", " ");
         var msgSplt = msg.Split(' ');
         var adjective = msgSplt[0];
-        var subject = msgSplt.Length > 1 ? msgSplt[1].Trim() : null;
+        var subject = msgSplt.Length > 1 ? msgSplt[1].Replace("!", string.Empty) : null;
 
         if (subject != null && subject.Equals("bot", StringComparison.InvariantCultureIgnoreCase))
         {

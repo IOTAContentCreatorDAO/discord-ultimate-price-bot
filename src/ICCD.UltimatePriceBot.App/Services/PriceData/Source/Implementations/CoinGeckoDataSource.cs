@@ -28,12 +28,15 @@ public class CoinGeckoDataSource : IPriceDataSource
     public string Name => "CoinGecko";
 
     /// <inheritdoc/>
+    public string? Link => "https://www.coingecko.com";
+
+    /// <inheritdoc/>
     public async Task<TokenPriceData> GetPriceForTokenAsync(SourceTokenInfo tokenInfo, string priceCurrency = "USD")
     {
         var data = await _client.GetAllCoinDataWithId(tokenInfo.Id);
 
         var currencyKey = priceCurrency.ToLowerInvariant();
-        var res = new TokenPriceData(tokenInfo, priceCurrency, Name)
+        var res = new TokenPriceData(tokenInfo, priceCurrency, this)
         {
             MarketCapRank = data.MarketCapRank?.ConvertTo<uint>(),
             CurrentPrice = data.MarketData.CurrentPrice.TryGetValue(currencyKey, out var parsedValueCurrent) ? parsedValueCurrent?.ConvertTo<decimal>() : null,
@@ -50,6 +53,9 @@ public class CoinGeckoDataSource : IPriceDataSource
 
         return res;
     }
+
+    /// <inheritdoc/>
+    public string? GetTokenLink(SourceTokenInfo tokenInfo) => string.Format(Link + "/en/coins/{0}", tokenInfo.Id);
 
     /// <inheritdoc/>
     public async Task<ICollection<SourceTokenInfo>> GetTokensAsync()

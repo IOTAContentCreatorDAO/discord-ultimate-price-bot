@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace ICCD.UltimatePriceBot.App.Models;
 /// </summary>
 public class PriceDataViewModel
 {
+    private readonly IPriceDataSource _dataSource;
     private decimal? _marketCapUsd;
 
     /// <summary>
@@ -28,6 +30,8 @@ public class PriceDataViewModel
     /// <param name="data">The API data response.</param>
     public PriceDataViewModel(TokenPriceData data)
     {
+        _dataSource = data.DataSource;
+
         Name = data.TokenInfo.Name;
         Symbol = data.TokenInfo.Symbol;
         Rank = data.MarketCapRank;
@@ -41,8 +45,13 @@ public class PriceDataViewModel
         TotalVolumeUsd = data.TotalVolume;
         AthPriceUsd = data.AthPrice;
         AthDate = data.AthDate;
-        DataSource = data.DataSource;
+        TokenLink = data.DataSource.GetTokenLink(data.TokenInfo);
     }
+
+    /// <summary>
+    /// Gets a link to the token from the upstream source.
+    /// </summary>
+    public string? TokenLink { get; }
 
     /// <summary>
     /// Gets the asset name.
@@ -55,14 +64,9 @@ public class PriceDataViewModel
     public string Symbol { get; }
 
     /// <summary>
-    /// Gets the data source name.
-    /// </summary>
-    public string DataSource { get; }
-
-    /// <summary>
     /// Gets the embed footer content.
     /// </summary>
-    public string FooterContent => $"Data by {DataSource}.\nWith ❤️ by the ICCD and Contributors.";
+    public string FooterContent => $"Data by {_dataSource.Name}.\nWith ❤️ by the ICCD and Contributors.";
 
     /// <summary>
     /// Gets the asset rank.
@@ -173,6 +177,20 @@ public class PriceDataViewModel
             upOrDown += vm.PriceChangePercentage1Hour < 0 ? -1 : 1;
             var upDownArrow = vm.PriceChangePercentage1Hour < 0 ? '⬊' : '⬈';
             var title = $"{upDownArrow} {vm.Name.Truncate(10)} #{vm.Rank.GetDisplayString()}";
+
+            /*
+            var title = $"{upDownArrow}";
+            if (TokenLink != null)
+            {
+                title += $"[{vm.Name}]({TokenLink})";
+            }
+            else
+            {
+                title += $"{vm.Name.Truncate(10)}";
+            }
+            title += $" #{vm.Rank.GetDisplayString()}";
+            */
+
             var sbDescription = new StringBuilder();
             sbDescription.AppendLine($"``Price: ${vm.CurrentPriceUsd.GetDisplayString("N4")}``");
             sbDescription.AppendLine($"``1H: {vm.PriceChangePercentage1Hour.GetDisplayString("N2")}%``");

@@ -18,7 +18,7 @@ public class TokenPriceData
     /// <param name="tokenInfo">The token info.</param>
     /// <param name="currency">The token price currency.</param>
     /// <param name="dataSource">The data source.</param>
-    public TokenPriceData(SourceTokenInfo tokenInfo, string currency, string dataSource)
+    public TokenPriceData(SourceTokenInfo tokenInfo, string currency, IPriceDataSource dataSource)
     {
         TokenInfo = tokenInfo;
         Currency = currency;
@@ -38,7 +38,7 @@ public class TokenPriceData
     /// <summary>
     /// Gets the data source.
     /// </summary>
-    public string DataSource { get; }
+    public IPriceDataSource DataSource { get; }
 
     /// <summary>
     /// Gets the asset rank.
@@ -106,4 +106,9 @@ public class TokenPriceData
     /// Gets the total volume.
     /// </summary>
     public decimal? TotalVolume { get; internal set; }
+
+    /// <summary>
+    /// Gets the created date.
+    /// </summary>
+    public DateTime CreatedDate { get; } = DateTime.Now;
 }

@@ -19,9 +19,9 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations
     /// </summary>
     public class CoinMarketCapDataSource : IPriceDataSource
     {
-        private readonly CoinMarketCapClient _client;
+        private readonly Dictionary<string, List<Tuple<DateTime, decimal>>> _priceDataList = new();
 
-        private readonly Dictionary<string, Tuple<decimal?, decimal?>> _highLowPriceDictionary = new();
+        private readonly CoinMarketCapClient _client;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CoinMarketCapDataSource"/> class.
@@ -36,6 +36,9 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations
         public string Name => "CoinMarketCap";
 
         /// <inheritdoc/>
+        public string? Link => "https://coinmarketcap.com";
+
+        /// <inheritdoc/>
         public async Task<TokenPriceData> GetPriceForTokenAsync(SourceTokenInfo tokenInfo, string priceCurrency = "USD")
         {
             var currencyKey = priceCurrency.ToUpperInvariant();
@@ -45,29 +48,34 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations
                 throw new ApplicationException("Could not get token quote.");
             }
 
-            _ = _highLowPriceDictionary.TryGetValue(tokenInfo.Id, out var highLowValue);
-
-            var priceLow = Convert.ToDecimal(priceQuote?.Price) < Convert.ToDecimal(highLowValue?.Item1) ? Convert.ToDecimal(priceQuote?.Price) : highLowValue?.Item1;
-            var priceHigh = Convert.ToDecimal(priceQuote?.Price) > Convert.ToDecimal(highLowValue?.Item2) ? Convert.ToDecimal(priceQuote?.Price) : highLowValue?.Item2;
-            if (highLowValue?.Item1 != priceLow || highLowValue?.Item2 != priceHigh)
+            if (!_priceDataList.ContainsKey(tokenInfo.Id))
             {
-                _highLowPriceDictionary[tokenInfo.Id] = new Tuple<decimal?, decimal?>(priceLow, priceHigh);
+                _priceDataList[tokenInfo.Id] = new List<Tuple<DateTime, decimal>>();
             }
 
-            var res = new TokenPriceData(tokenInfo, priceCurrency, Name)
+            if (priceQuote?.Price != null)
             {
-                MarketCapRank = quoteInfo.CmcRank?.ConvertTo<uint>(),
+                _priceDataList[tokenInfo.Id].Add(new Tuple<DateTime, decimal>(DateTime.Now, priceQuote.Price.ConvertTo<decimal>()));
+            }
+
+            var twentyFourHourPrices = _priceDataList[tokenInfo.Id].Where(x => x.Item1 >= DateTime.Now - TimeSpan.FromDays(1)).ToList();
+            var res = new TokenPriceData(tokenInfo, priceCurrency, this)
+            {
+                MarketCapRank = quoteInfo?.CmcRank?.ConvertTo<uint>(),
                 CurrentPrice = priceQuote?.Price?.ConvertTo<decimal>(),
                 MarketCap = priceQuote?.MarketCap,
                 PriceChangePercentage1Hour = priceQuote?.PercentChange1H,
                 PriceChangePercentage24Hours = priceQuote?.PercentChange24H,
                 TotalVolume = priceQuote?.Volume24H,
-                HighestPrice24H = priceHigh,
-                LowestPrice24H = priceLow,
+                HighestPrice24H = twentyFourHourPrices.Count > 0 ? twentyFourHourPrices.Max(x => x.Item2) : null,
+                LowestPrice24H = twentyFourHourPrices.Count > 0 ? twentyFourHourPrices.Min(x => x.Item2) : null,
             };
 
             return res;
         }
+
+        /// <inheritdoc/>
+        public string? GetTokenLink(SourceTokenInfo tokenInfo) => tokenInfo.Slug != null ? string.Format(Link + "/currencies/{0}", tokenInfo.Slug) : null;
 
         /// <inheritdoc/>
         public async Task<ICollection<SourceTokenInfo>> GetTokensAsync()

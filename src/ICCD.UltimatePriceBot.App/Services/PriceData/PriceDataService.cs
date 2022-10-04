@@ -3,6 +3,7 @@
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
+using System.Reflection.Metadata.Ecma335;
 using ICCD.UltimatePriceBot.App.Models;
 using ICCD.UltimatePriceBot.App.Services.PriceData.Source;
 
@@ -13,7 +14,7 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData;
 /// </summary>
 public class PriceDataService
 {
-    private readonly Dictionary<string, PriceDataViewModel> _cache = new();
+    private readonly Dictionary<string, TokenPriceData> _tokenPriceCache = new();
 
     private readonly Dictionary<string, SourceTokenInfo> _tokenLookupTable = new(StringComparer.InvariantCultureIgnoreCase);
 
@@ -46,16 +47,8 @@ public class PriceDataService
             }
 
             var tokenInfoObj = _tokenLookupTable[tokenKey];
+            var data = await GetTokenPriceDataAsync(tokenInfoObj);
 
-            if (_cache.TryGetValue(tokenInfoObj.Id, out var cachedEntry))
-            {
-                if (DateTime.Now - cachedEntry.CreatedDate < TimeSpan.FromSeconds(60))
-                {
-                    return cachedEntry;
-                }
-            }
-
-            var data = await _priceDataSource.GetPriceForTokenAsync(tokenInfoObj);
             var viewModel = new PriceDataViewModel(data);
 
             if (tokenInfoObj.Symbol.Equals("iota", StringComparison.InvariantCultureIgnoreCase) || tokenInfoObj.Symbol.Equals("miota", StringComparison.InvariantCultureIgnoreCase) || tokenInfoObj.Symbol.Equals("smr", StringComparison.InvariantCultureIgnoreCase))
@@ -71,12 +64,10 @@ public class PriceDataService
                 }
 
                 var otherTokenInfoObj = _tokenLookupTable[otherTokenName];
-
-                var other = new PriceDataViewModel(await _priceDataSource.GetPriceForTokenAsync(otherTokenInfoObj));
-                viewModel.Relations.Add(other.Symbol.ToUpperInvariant(), viewModel.GetRelationValueTo(other));
+                var otherData = await GetTokenPriceDataAsync(otherTokenInfoObj);
+                var otherViewModel = new PriceDataViewModel(otherData);
+                viewModel.Relations.Add(otherViewModel.Symbol.ToUpperInvariant(), viewModel.GetRelationValueTo(otherViewModel));
             }
-
-            _cache[tokenInfoObj.Id] = viewModel;
 
             return viewModel;
         }
@@ -102,6 +93,19 @@ public class PriceDataService
         }
 
         return _tokenLookupTable[tokenName].Id;
+    }
+
+    private async Task<TokenPriceData> GetTokenPriceDataAsync(SourceTokenInfo tokenInfo)
+    {
+        _ = _tokenPriceCache.TryGetValue(tokenInfo.Id, out var data);
+        if (data == null || DateTime.Now - data.CreatedDate > TimeSpan.FromSeconds(60))
+        {
+            // Update cache.
+            data = await _priceDataSource.GetPriceForTokenAsync(tokenInfo);
+            _tokenPriceCache[tokenInfo.Id] = data;
+        }
+
+        return data;
     }
 
     private async Task Init()

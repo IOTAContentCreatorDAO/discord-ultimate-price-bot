@@ -17,6 +17,11 @@ public interface IPriceDataSource
     public string Name { get; }
 
     /// <summary>
+    /// Gets the source's primary link.
+    /// </summary>
+    public string? Link { get; }
+
+    /// <summary>
     /// Gets all of the endpoint's available tokens.
     /// </summary>
     /// <returns>A list of endpoint available tokens.</returns>
@@ -29,4 +34,12 @@ public interface IPriceDataSource
     /// <param name="priceCurrency">The currency to get the prices in. Default = USD.</param>
     /// <returns>The token's price data.</returns>
     public Task<TokenPriceData> GetPriceForTokenAsync(SourceTokenInfo tokenInfo, string priceCurrency = "USD");
+
+    /// <summary>
+    /// Gets a link for a respective token.
+    /// Null if the upstream source has no link.
+    /// </summary>
+    /// <param name="tokenInfo">The token.</param>
+    /// <returns>The token link.</returns>
+    public string? GetTokenLink(SourceTokenInfo tokenInfo);
 }

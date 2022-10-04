@@ -155,7 +155,8 @@ public class PriceModule : ModuleBase<SocketCommandContext>
             if (Context.Message.Author.Id.Equals(189498611690766336))
             {
                 await Context.Message.AddReactionAsync(new Emoji("❤️"), options);
-            }else
+            }
+            else
             {
                 await Context.Message.AddReactionAsync(Emoji.Parse("✅"));
             }

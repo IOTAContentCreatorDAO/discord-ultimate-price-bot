@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using CoinGecko.Entities.Response.Coins;
 using Discord;
 using ICCD.UltimatePriceBot.App.Extensions;
+using ICCD.UltimatePriceBot.App.Services.PriceData.Source;
 
 namespace ICCD.UltimatePriceBot.App.Models;
 
@@ -19,39 +20,28 @@ namespace ICCD.UltimatePriceBot.App.Models;
 /// </summary>
 public class PriceDataViewModel
 {
-    private readonly string _footerLine = "Data by CoinGecko.\nWith ❤️ by the ICCD and Contributors.";
     private decimal? _marketCapUsd;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceDataViewModel"/> class.
     /// </summary>
-    /// <param name="name">The name of the asset.</param>
-    /// <param name="symbol">The symbol of the asset.</param>
-    public PriceDataViewModel(string name, string symbol)
+    /// <param name="data">The API data response.</param>
+    public PriceDataViewModel(TokenPriceData data)
     {
-        Name = name;
-        Symbol = symbol;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PriceDataViewModel"/> class.
-    /// </summary>
-    /// <param name="data">The coingecko API response.</param>
-    public PriceDataViewModel(CoinFullDataById data)
-    {
-        Name = data.Name;
-        Symbol = data.Symbol;
-        Rank = data.MarketCapRank?.ConvertTo<uint>();
-        CurrentPriceUsd = data.MarketData.CurrentPrice.TryGetValue("usd", out var parsedValueCurrent) ? parsedValueCurrent?.ConvertTo<decimal>() : null;
-        HighestPriceUsd = data.MarketData.High24H.TryGetValue("usd", out var parsedValueHigh) ? parsedValueHigh?.ConvertTo<decimal>() : null;
-        LowestPriceUsd = data.MarketData.Low24H.TryGetValue("usd", out var parsedValueLow) ? parsedValueLow?.ConvertTo<decimal>() : null;
-        MarketCapUsd = data.MarketData.MarketCap.TryGetValue("usd", out var parsedMarketCap) ? parsedMarketCap?.ConvertTo<decimal>() : null;
-        PriceChangePercentage1Hour = data.MarketData.PriceChangePercentage1HInCurrency.TryGetValue("usd", out var parsedPriceChangePercentage1H) ? parsedPriceChangePercentage1H : null;
-        PriceChangePercentage24Hours = data.MarketData.PriceChangePercentage24HInCurrency.TryGetValue("usd", out var parsedPriceChangePercentage24H) ? parsedPriceChangePercentage24H : null;
-        PriceChangePercentageAth = data.MarketData.AthChangePercentage.TryGetValue("usd", out var parsedPriceChangePercentageAth) ? parsedPriceChangePercentageAth.ConvertTo<double>() : null;
-        TotalVolumeUsd = data.MarketData.TotalVolume.TryGetValue("usd", out var parsedTotalVolume) ? parsedTotalVolume?.ConvertTo<decimal>() : null;
-        AthPriceUsd = data.MarketData.Ath.TryGetValue("usd", out var athPrice) ? athPrice?.ConvertTo<decimal>() : null;
-        AthDate = data.MarketData.AthDate.TryGetValue("usd", out var athDate) ? athDate : null;
+        Name = data.TokenInfo.Name;
+        Symbol = data.TokenInfo.Symbol;
+        Rank = data.MarketCapRank;
+        CurrentPriceUsd = data.CurrentPrice;
+        HighestPriceUsd = data.HighestPrice24H;
+        LowestPriceUsd = data.LowestPrice24H;
+        MarketCapUsd = data.MarketCap;
+        PriceChangePercentage1Hour = data.PriceChangePercentage1Hour;
+        PriceChangePercentage24Hours = data.PriceChangePercentage24Hours;
+        PriceChangePercentageAth = data.PriceChangePercentageAth;
+        TotalVolumeUsd = data.TotalVolume;
+        AthPriceUsd = data.AthPrice;
+        AthDate = data.AthDate;
+        DataSource = data.DataSource;
     }
 
     /// <summary>
@@ -63,6 +53,16 @@ public class PriceDataViewModel
     /// Gets the asset symbol.
     /// </summary>
     public string Symbol { get; }
+
+    /// <summary>
+    /// Gets the data source name.
+    /// </summary>
+    public string DataSource { get; }
+
+    /// <summary>
+    /// Gets the embed footer content.
+    /// </summary>
+    public string FooterContent => $"Data by {DataSource}.\nWith ❤️ by the ICCD and Contributors.";
 
     /// <summary>
     /// Gets the asset rank.
@@ -188,7 +188,7 @@ public class PriceDataViewModel
                 .WithIsInline(true));
         }
 
-        eb = eb.WithFooter(_footerLine);
+        eb = eb.WithFooter(FooterContent);
         if (upOrDown < 0)
         {
             eb = eb.WithColor(Color.Red);
@@ -214,7 +214,7 @@ public class PriceDataViewModel
         var eb = new EmbedBuilder()
         .WithTitle($"{Name} #{Rank.GetDisplayString()}")
         .WithColor(PriceChangePercentage1Hour < 0 ? Color.Red : Color.Green)
-        .WithFooter(_footerLine);
+        .WithFooter(FooterContent);
 
         var priceChangeEmoji = PriceChangePercentage1Hour < 0 ? "⬊" : "⬈";
         eb = eb.AddField($"{priceChangeEmoji} Price: ${CurrentPriceUsd.GetDisplayString("N4")}", $"``High: ${HighestPriceUsd.GetDisplayString("N4")}``\n``Low:  ${LowestPriceUsd.GetDisplayString("N4")}``", true);

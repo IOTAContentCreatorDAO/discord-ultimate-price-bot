@@ -3,13 +3,12 @@
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
-using System.Runtime.InteropServices;
 using System.Text;
 using Discord;
 using Discord.WebSocket;
 using ICCD.UltimatePriceBot.App.Extensions;
 using ICCD.UltimatePriceBot.App.Models;
-using ReentrantAsyncLock;
+using ICCD.UltimatePriceBot.App.Services.PriceData;
 
 namespace ICCD.UltimatePriceBot.App.Services;
 

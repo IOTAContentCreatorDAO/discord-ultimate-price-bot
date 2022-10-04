@@ -7,6 +7,9 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using ICCD.UltimatePriceBot.App.Services;
+using ICCD.UltimatePriceBot.App.Services.PriceData;
+using ICCD.UltimatePriceBot.App.Services.PriceData.Source;
+using ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ICCD.UltimatePriceBot.App;
@@ -41,6 +44,32 @@ public sealed class Program
             .AddSingleton<CommandHandlingService>()
             .AddSingleton<HttpClient>()
             .AddSingleton<NameUpdateService>()
+            .AddSingleton(typeof(IPriceDataSource), (x) =>
+            {
+                _ = uint.TryParse(Environment.GetEnvironmentVariable("DATA_SOURCE_ID"), out var dataSourceId);
+                var apiKey = Environment.GetEnvironmentVariable("DATA_SOURCE_API_KEY");
+
+                // CoinGecko
+                if (dataSourceId == 0)
+                {
+                    return new CoinGeckoDataSource();
+                }
+
+                // CoinMarketCap
+                else if (dataSourceId == 1)
+                {
+                    if (string.IsNullOrEmpty(apiKey))
+                    {
+                        throw new ApplicationException("API Key is not specified.");
+                    }
+
+                    return new CoinMarketCapDataSource(apiKey);
+                }
+                else
+                {
+                    throw new NotImplementedException($"Data Source with ID {dataSourceId} is not implemented.");
+                }
+            })
             .AddSingleton<PriceDataService>()
             .BuildServiceProvider();
     }

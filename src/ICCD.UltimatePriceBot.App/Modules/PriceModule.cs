@@ -10,6 +10,7 @@ using Discord.Commands;
 using Discord.Rest;
 using ICCD.UltimatePriceBot.App.Extensions;
 using ICCD.UltimatePriceBot.App.Services;
+using ICCD.UltimatePriceBot.App.Services.PriceData;
 using Newtonsoft.Json;
 
 namespace ICCD.UltimatePriceBot.App.Modules;
@@ -71,7 +72,7 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     [Alias("pi", "price", "rice", "🍚")]
     public async Task GetPriceForIotaTokenAsync()
     {
-        await GetPriceForTokenAsync("iota");
+        await GetPriceForTokenAsync("miota");
     }
 
     /// <summary>
@@ -92,7 +93,7 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     [Alias("pp", "ps", "sushi", "🍣")]
     public async Task GetPriceForShimmerTokenAsync()
     {
-        await GetPriceForTokenAsync("shimmer");
+        await GetPriceForTokenAsync("smr");
     }
 
     /// <summary>
@@ -111,73 +112,72 @@ public class PriceModule : ModuleBase<SocketCommandContext>
 
         if (string.IsNullOrEmpty(tokenName))
         {
-            _ = await ReplyAsync($"Please provide a token name.", messageReference: Context.Message.ToReference());
+            _ = ReplyAsync($"Please provide a token name.", messageReference: Context.Message.ToReference());
+            _ = Context.Message.AddReactionAsync(Emoji.Parse("❌"));
             return;
         }
 
-        var options = new RequestOptions
+        try
         {
-            Timeout = 50,
-        };
-
-        if (!_priceDataService.TokenExists(tokenName) && !tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
-        {
-            _lastPriceRequests.TryGetValue(tokenName, out var lastPriceRequest);
-            if (DateTime.Now - lastPriceRequest < TimeSpan.FromSeconds(60))
+            var options = new RequestOptions
             {
-                _ = Context.Message.AddReactionAsync(!Context.Message.Author.Id.Equals(189498611690766336) ? new Emoji("😡") : new Emoji("❤️"), options);
+                Timeout = 50,
+            };
+
+            if (!_priceDataService.TokenExists(tokenName) && !tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _lastPriceRequests[tokenName] = DateTime.Now;
+                _ = ReplyAsync(embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build(), messageReference: Context.Message.ToReference());
+                _ = Context.Message.AddReactionAsync(Emoji.Parse("❌"));
                 return;
             }
 
-            _lastPriceRequests[tokenName] = DateTime.Now;
-            _ = ReplyAsync(embed: new EmbedBuilder().WithTitle("Unknown Token").WithDescription("Could not find data for the requested token.").WithCurrentTimestamp().WithColor(Color.Red).Build(), messageReference: Context.Message.ToReference());
-            return;
-        }
-
-        string tokenId;
-        if (tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
-        {
-            tokenId = "iotasmr";
-        }
-        else
-        {
-            tokenId = _priceDataService.GetTokenId(tokenName);
-        }
-
-        _lastPriceRequests.TryGetValue(tokenId, out var lastPriceRequest2);
-
-        if (DateTime.Now - lastPriceRequest2 < TimeSpan.FromSeconds(30))
-        {
-            if (!Context.Message.Author.Id.Equals(189498611690766336))
+            string tokenId;
+            if (tokenName.Equals("iotasmr", StringComparison.InvariantCultureIgnoreCase))
             {
-                await Context.Message.AddReactionAsync(new Emoji("😡"), options);
+                tokenId = "iotasmr";
             }
             else
             {
-                await Context.Message.AddReactionAsync(new Emoji("❤️"), options);
+                tokenId = _priceDataService.GetTokenId(tokenName);
             }
 
-            return;
-        }
+            _lastPriceRequests.TryGetValue(tokenId, out var lastPriceRequest2);
 
-        _lastPriceRequests[tokenId] = DateTime.Now;
+            if (DateTime.Now - lastPriceRequest2 < TimeSpan.FromSeconds(30))
+            {
+                await Context.Message.AddReactionAsync(new Emoji("😡"), options);
+                return;
+            }
 
-        if (tokenId == "iotasmr")
-        {
-            var priceIota = await _priceDataService.GetPriceDataAsync("iota");
-            var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
-            _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr), messageReference: Context.Message.ToReference());
-        }
-        else
-        {
-            var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
-            var embed = concise ? priceData.ToConciseEmbed() : priceData.ToEmbed();
-            _ = ReplyAsync(embed: embed, messageReference: Context.Message.ToReference());
-        }
+            _lastPriceRequests[tokenId] = DateTime.Now;
 
-        if (Context.Message.Author.Id.Equals(189498611690766336))
+            if (Context.Message.Author.Id.Equals(189498611690766336))
+            {
+                await Context.Message.AddReactionAsync(new Emoji("❤️"), options);
+            }else
+            {
+                await Context.Message.AddReactionAsync(Emoji.Parse("✅"));
+            }
+
+            if (tokenId == "iotasmr")
+            {
+                var priceIota = await _priceDataService.GetPriceDataAsync("iota");
+                var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
+                _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr), messageReference: Context.Message.ToReference());
+            }
+            else
+            {
+                var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
+                var embed = concise ? priceData.ToConciseEmbed() : priceData.ToEmbed();
+                _ = ReplyAsync(embed: embed, messageReference: Context.Message.ToReference());
+            }
+        }
+        catch (Exception)
         {
-            _ = Context.Message.AddReactionAsync(new Emoji("❤️"), options);
+            await Context.Message.RemoveReactionAsync(Emoji.Parse("✅"), Context.Client.CurrentUser);
+            await Context.Message.AddReactionAsync(Emoji.Parse("❌"));
+            throw;
         }
     }
 

@@ -21,7 +21,7 @@ public class CoinGeckoDataSource : IPriceDataSource
     /// </summary>
     public CoinGeckoDataSource()
     {
-        _client = new CoinsClient(new HttpClient() { Timeout = TimeSpan.FromMilliseconds(500) }, new JsonSerializerSettings());
+        _client = new CoinsClient(new HttpClient(), new JsonSerializerSettings());
     }
 
     /// <inheritdoc/>

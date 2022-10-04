@@ -45,7 +45,7 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations
             var latestQuote = await _client.GetLatestQuoteAsync(new LatestQuoteParameters() { Id = Convert.ToInt32(tokenInfo.Id), Convert = priceCurrency }, CancellationToken.None);
             if (latestQuote == null || latestQuote.Data == null || !latestQuote.Data.TryGetValue(tokenInfo.Id.ToString(), out var quoteInfo) || !quoteInfo.Quote.TryGetValue(currencyKey, out var priceQuote))
             {
-                throw new ApplicationException("Could not get token quote.");
+                throw new ApplicationException($"Could not get token quote.\n{Newtonsoft.Json.JsonConvert.SerializeObject(latestQuote?.Status)}");
             }
 
             if (!_priceDataList.ContainsKey(tokenInfo.Id))
@@ -84,7 +84,7 @@ namespace ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations
             var cryptoCurrencyIdMap = await _client.GetCryptocurrencyIdMapAsync(new IdMapParameters(), CancellationToken.None);
             if (cryptoCurrencyIdMap == null || cryptoCurrencyIdMap.Data == null)
             {
-                throw new ApplicationException("Could not get token list.");
+                throw new ApplicationException($"Could not get token list.\n{Newtonsoft.Json.JsonConvert.SerializeObject(cryptoCurrencyIdMap?.Status)}");
             }
 
             foreach (var cryptoCurrencyIdMapEntry in cryptoCurrencyIdMap.Data)

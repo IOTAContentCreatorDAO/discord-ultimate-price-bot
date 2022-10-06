@@ -10,7 +10,7 @@ Docker is the only supported way to deploy the bot.
 
 ### How to run
 1. Clone this repository recursively: ``git clone --recursive --depth 1 https://github.com/icc-dao/discord-ultimate-price-bot``
-2. Create an ``appsettings.json`` file in the bot's root directory, you can find and example in the bot's root directory or here: [appsettings.Example.json](https://raw.githubusercontent.com/icc-dao/discord-ultimate-price-bot/main/appsettings.Example.json).
+2. Create an ``appsettings.json`` file in the bot's root directory, you can find an example in the bot's root directory or here: [appsettings.Example.json](https://raw.githubusercontent.com/icc-dao/discord-ultimate-price-bot/main/appsettings.Example.json).
 3. Configure ``appsettings.json`` to fit your needs.
 4. Build and run the bot by issuing ``docker compose up -d --build`` in the bot's root directory.
 

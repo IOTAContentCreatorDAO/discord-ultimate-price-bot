@@ -114,16 +114,17 @@ public sealed class Program
     {
         await using var services = ConfigureServices();
         var client = services.GetRequiredService<DiscordSocketClient>();
+        var appSettings = services.GetRequiredService<IOptions<AppSettings>>();
 
         client.Log += LogAsync;
         services.GetRequiredService<CommandService>().Log += LogAsync;
 
-        await client.LoginAsync(TokenType.Bot, _configuration.GetValue<string>("BotToken"));
+        await client.LoginAsync(TokenType.Bot, appSettings.Value.BotToken);
         await client.StartAsync();
 
         await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
-        if (_configuration.GetValue<bool>("EnableNameUpdateService"))
+        if (appSettings.Value.EnableNameUpdateService)
         {
             await services.GetRequiredService<NameUpdateService>().StartAsync();
         }

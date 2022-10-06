@@ -11,11 +11,6 @@ namespace ICCD.UltimatePriceBot.App.Configuration;
 public partial class AppSettings
 {
     /// <summary>
-    /// Gets or sets the app environment.
-    /// </summary>
-    public string AppEnvironment { get; set; } = "Production";
-
-    /// <summary>
     /// Gets or sets the development discord guild ID.
     /// </summary>
     public ulong? DevelopmentGuildId { get; set; }

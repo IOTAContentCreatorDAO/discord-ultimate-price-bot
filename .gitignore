@@ -352,3 +352,5 @@ MigrationBackup/
 # Custom
 .env*
 !.env.example
+appsettings.**json
+!appsettings.Example.json

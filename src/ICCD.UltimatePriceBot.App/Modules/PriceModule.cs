@@ -4,13 +4,16 @@
 // </copyright>
 
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Reflection.Emit;
 using Discord;
 using Discord.Commands;
 using Discord.Rest;
+using ICCD.UltimatePriceBot.App.Configuration;
 using ICCD.UltimatePriceBot.App.Extensions;
 using ICCD.UltimatePriceBot.App.Services;
 using ICCD.UltimatePriceBot.App.Services.PriceData;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 namespace ICCD.UltimatePriceBot.App.Modules;
@@ -21,8 +24,12 @@ namespace ICCD.UltimatePriceBot.App.Modules;
 public class PriceModule : ModuleBase<SocketCommandContext>
 {
     private static readonly Dictionary<string, DateTime> _lastPriceRequests = new(StringComparer.InvariantCultureIgnoreCase);
+    private readonly string? _priceShimmerCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetPriceForShimmerTokenAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
+    private readonly string? _priceIotaCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetPriceForIotaTokenAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
+    private readonly string? _priceCombinedCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetComboPriceAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
     private readonly PriceDataService _priceDataService;
     private readonly NameUpdateService _nameUpdateService;
+    private readonly IOptionsMonitor<CommandOptions> _commandOptions;
     private bool _skip;
 
     /// <summary>
@@ -30,38 +37,12 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     /// </summary>
     /// <param name="nameUpdateService">Bot name update service.</param>
     /// <param name="priceDataService">Price data service.</param>
-    public PriceModule(PriceDataService priceDataService, NameUpdateService nameUpdateService)
+    /// <param name="commandOptions">Command options service.</param>
+    public PriceModule(PriceDataService priceDataService, NameUpdateService nameUpdateService, IOptionsMonitor<CommandOptions> commandOptions)
     {
         _priceDataService = priceDataService;
         _nameUpdateService = nameUpdateService;
-    }
-
-    /// <summary>
-    /// Command to start or top the bot Name Update Service.
-    /// </summary>
-    /// <param name="verb">Either "start" or "stop".</param>
-    /// <exception cref="ArgumentException">Thrown when verb is neither "start" nor "stop".</exception>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [RequireContext(ContextType.DM)]
-    [Command("!NameUpdate")]
-    public async Task ManageNameUpdateService(string verb)
-    {
-        if (!Context.User.Id.Equals(189498611690766336))
-        {
-            return;
-        }
-
-        switch (verb)
-        {
-            case "start":
-                await _nameUpdateService.StartAsync();
-                break;
-            case "stop":
-                await _nameUpdateService.StopAsync();
-                break;
-            default:
-                return;
-        }
+        _commandOptions = commandOptions;
     }
 
     /// <summary>
@@ -69,10 +50,18 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("pi", true)]
-    [Alias("pi", "price", "rice", "🍚")]
+    [Alias("price", "rice", "🍚")]
     public async Task GetPriceForIotaTokenAsync()
     {
-        await GetPriceForTokenAsync("miota");
+        var iotaPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceIota));
+        if (iotaPriceOptions.Override)
+        {
+            await GetPriceForTokenAsync("miota", iotaPriceOptions.Concise, iotaPriceOptions.ShowRelations ? iotaPriceOptions.RelationsOverride.ToArray() : Array.Empty<string>());
+        }
+        else
+        {
+            await GetPriceForTokenAsync("miota", relations: "smr");
+        }
     }
 
     /// <summary>
@@ -82,7 +71,16 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     [Command("p")]
     public async Task GetComboPriceAsync()
     {
-        await GetPriceForTokenAsync("iotasmr");
+        var combinedPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceCombined));
+
+        if (combinedPriceOptions.Override)
+        {
+            await GetPriceForTokenAsync("iotasmr", true, combinedPriceOptions.ShowRelations ? combinedPriceOptions.RelationsOverride.ToArray() : Array.Empty<string>());
+        }
+        else
+        {
+            await GetPriceForTokenAsync("iotasmr", true, "iota", "smr");
+        }
     }
 
     /// <summary>
@@ -93,7 +91,15 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     [Alias("pp", "ps", "sushi", "🍣")]
     public async Task GetPriceForShimmerTokenAsync()
     {
-        await GetPriceForTokenAsync("smr");
+        var shimmerPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceShimmer));
+        if (shimmerPriceOptions.Override)
+        {
+            await GetPriceForTokenAsync("smr", shimmerPriceOptions.Concise, shimmerPriceOptions.ShowRelations ? shimmerPriceOptions.RelationsOverride.ToArray() : Array.Empty<string>());
+        }
+        else
+        {
+            await GetPriceForTokenAsync("smr", relations: "miota");
+        }
     }
 
     /// <summary>
@@ -101,9 +107,10 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     /// </summary>
     /// <param name="tokenName">Token to request the price for.</param>
     /// <param name="concise">Whether the bot response should be concise.</param>
+    /// <param name="relations">Relations to display to other tokens.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Command("!price", true)]
-    public async Task GetPriceForTokenAsync(string? tokenName = null, bool concise = false)
+    public async Task GetPriceForTokenAsync(string? tokenName = null, bool concise = false, params string[] relations)
     {
         if (_skip || Context.Channel.GetChannelType() != ChannelType.Text)
         {
@@ -163,13 +170,13 @@ public class PriceModule : ModuleBase<SocketCommandContext>
 
             if (tokenId == "iotasmr")
             {
-                var priceIota = await _priceDataService.GetPriceDataAsync("iota");
-                var priceSmr = await _priceDataService.GetPriceDataAsync("smr");
+                var priceIota = await _priceDataService.GetPriceDataAsync("iota", relations);
+                var priceSmr = await _priceDataService.GetPriceDataAsync("smr", relations);
                 _ = ReplyAsync(embed: priceIota.ToConciseEmbed(priceSmr), messageReference: Context.Message.ToReference());
             }
             else
             {
-                var priceData = await _priceDataService.GetPriceDataAsync(tokenName);
+                var priceData = await _priceDataService.GetPriceDataAsync(tokenName, relations);
                 var embed = concise ? priceData.ToConciseEmbed() : priceData.ToEmbed();
                 _ = ReplyAsync(embed: embed, messageReference: Context.Message.ToReference());
             }
@@ -185,9 +192,51 @@ public class PriceModule : ModuleBase<SocketCommandContext>
     /// <inheritdoc/>
     protected override Task BeforeExecuteAsync(CommandInfo command)
     {
-        if (command.Name.Equals("ps") || command.Name.Equals("pi"))
+        // Only allow explicit command for PriceCombo, PriceIota, PriceShimmer
+        if ((_priceShimmerCommand != null && command.Name.Equals(_priceShimmerCommand)) ||
+            (_priceIotaCommand != null && command.Name.Equals(_priceIotaCommand)) ||
+            (_priceCombinedCommand != null && command.Name.Equals(_priceCombinedCommand)))
         {
-            if (!Context.Message.Content.Trim().Equals(command.Name, StringComparison.InvariantCultureIgnoreCase) && !command.Aliases.Any(x => x.Equals(Context.Message.Content.Trim(), StringComparison.InvariantCultureIgnoreCase)))
+            var combinedPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceCombined));
+            var iotaPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceIota));
+            var shimmerPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceShimmer));
+
+            var allCommands = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+
+            if (combinedPriceOptions.Override)
+            {
+                foreach (var overrideCommand in combinedPriceOptions.Commands)
+                {
+                    if (!allCommands.Contains(overrideCommand))
+                    {
+                        allCommands.Add(overrideCommand);
+                    }
+                }
+            }
+
+            if (iotaPriceOptions.Override)
+            {
+                foreach (var overrideCommand in iotaPriceOptions.Commands)
+                {
+                    if (!allCommands.Contains(overrideCommand))
+                    {
+                        allCommands.Add(overrideCommand);
+                    }
+                }
+            }
+
+            if (shimmerPriceOptions.Override)
+            {
+                foreach (var overrideCommand in shimmerPriceOptions.Commands)
+                {
+                    if (!allCommands.Contains(overrideCommand))
+                    {
+                        allCommands.Add(overrideCommand);
+                    }
+                }
+            }
+
+            if (!Context.Message.Content.Trim().Equals(command.Name, StringComparison.InvariantCultureIgnoreCase) && !allCommands.Contains(Context.Message.Content.Trim()) && !command.Aliases.Any(x => x.Equals(Context.Message.Content.Trim(), StringComparison.InvariantCultureIgnoreCase)))
             {
                 _skip = true;
             }

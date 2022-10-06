@@ -36,8 +36,9 @@ public class PriceDataService
     /// Gets the price data for a token.
     /// </summary>
     /// <param name="tokenKey">The token key (id, name, symbol or slug).</param>
+    /// <param name="relations">TODO: The relations to get to that token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task<PriceDataViewModel> GetPriceDataAsync(string tokenKey)
+    public async Task<PriceDataViewModel> GetPriceDataAsync(string tokenKey, params string[] relations)
     {
         await using (await _getPriceLock.LockAsync(CancellationToken.None))
         {
@@ -51,20 +52,14 @@ public class PriceDataService
 
             var viewModel = new PriceDataViewModel(data);
 
-            if (tokenInfoObj.Symbol.Equals("iota", StringComparison.InvariantCultureIgnoreCase) || tokenInfoObj.Symbol.Equals("miota", StringComparison.InvariantCultureIgnoreCase) || tokenInfoObj.Symbol.Equals("smr", StringComparison.InvariantCultureIgnoreCase))
+            foreach (var relation in relations)
             {
-                string otherTokenName;
-                if (tokenInfoObj.Symbol.Equals("iota", StringComparison.InvariantCultureIgnoreCase) || tokenInfoObj.Symbol.Equals("miota", StringComparison.InvariantCultureIgnoreCase))
+                if (!_tokenLookupTable.TryGetValue(relation, out var relationTokenInfo) || relationTokenInfo.Id.Equals(tokenInfoObj.Id))
                 {
-                    otherTokenName = "smr";
-                }
-                else
-                {
-                    otherTokenName = "miota";
+                    continue;
                 }
 
-                var otherTokenInfoObj = _tokenLookupTable[otherTokenName];
-                var otherData = await GetTokenPriceDataAsync(otherTokenInfoObj);
+                var otherData = await GetTokenPriceDataAsync(relationTokenInfo);
                 var otherViewModel = new PriceDataViewModel(otherData);
                 viewModel.Relations.Add(otherViewModel.Symbol.ToUpperInvariant(), viewModel.GetRelationValueTo(otherViewModel));
             }

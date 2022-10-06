@@ -5,10 +5,14 @@
 
 using System.Collections.Immutable;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using ICCD.UltimatePriceBot.App.Configuration;
+using ICCD.UltimatePriceBot.App.Modules;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ICCD.UltimatePriceBot.App.Services;
 
@@ -20,15 +24,18 @@ public class CommandHandlingService
     private readonly CommandService _commands;
     private readonly DiscordSocketClient _discord;
     private readonly IServiceProvider _services;
+    private readonly IOptionsMonitor<CommandOptions> _commandOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandHandlingService"/> class.
     /// </summary>
     /// <param name="services">The service provider.</param>
-    public CommandHandlingService(IServiceProvider services)
+    /// <param name="commandOptions">The command options monitor.</param>
+    public CommandHandlingService(IServiceProvider services, IOptionsMonitor<CommandOptions> commandOptions)
     {
         _commands = services.GetRequiredService<CommandService>();
         _discord = services.GetRequiredService<DiscordSocketClient>();
+        _commandOptions = commandOptions;
         _services = services;
 
         _commands.CommandExecuted += CommandExecutedAsync;
@@ -65,7 +72,58 @@ public class CommandHandlingService
 
         var context = new SocketCommandContext(_discord, message);
 
-        await _commands.ExecuteAsync(context, argPos, _services);
+        await _commands.ExecuteAsync(context, GetRealCommandString(rawMessage.Content)[argPos..], _services);
+    }
+
+    private string GetRealCommandString(string message)
+    {
+        // If a command is specified via options
+        var combinedPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceCombined));
+        var iotaPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceIota));
+        var shimmerPriceOptions = _commandOptions.Get(nameof(CommandOptions.PriceShimmer));
+
+        var command = message.Split(' ')[0];
+
+        if (combinedPriceOptions.Override && combinedPriceOptions.Commands.Contains(command))
+        {
+            var combinedPriceOptionsCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetComboPriceAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
+            if (combinedPriceOptionsCommand == null)
+            {
+                return message;
+            }
+            else
+            {
+                return combinedPriceOptionsCommand + message[command.Length..];
+            }
+        }
+
+        if (iotaPriceOptions.Override && iotaPriceOptions.Commands.Contains(command))
+        {
+            var iotaPriceOptionsCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetPriceForIotaTokenAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
+            if (iotaPriceOptionsCommand == null)
+            {
+                return message;
+            }
+            else
+            {
+                return iotaPriceOptionsCommand + message[command.Length..];
+            }
+        }
+
+        if (shimmerPriceOptions.Override && shimmerPriceOptions.Commands.Contains(command))
+        {
+            var shimmerPriceOptionsCommand = typeof(PriceModule).GetMethod(nameof(PriceModule.GetPriceForShimmerTokenAsync))?.GetCustomAttribute<CommandAttribute>()?.Text;
+            if (shimmerPriceOptionsCommand == null)
+            {
+                return message;
+            }
+            else
+            {
+                return shimmerPriceOptionsCommand + message[command.Length..];
+            }
+        }
+
+        return command;
     }
 
     private async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)

@@ -3,14 +3,20 @@
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
+using System.Data;
+using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using ICCD.UltimatePriceBot.App.Configuration;
 using ICCD.UltimatePriceBot.App.Services;
 using ICCD.UltimatePriceBot.App.Services.PriceData;
 using ICCD.UltimatePriceBot.App.Services.PriceData.Source;
 using ICCD.UltimatePriceBot.App.Services.PriceData.Source.Implementations;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ICCD.UltimatePriceBot.App;
 
@@ -19,19 +25,43 @@ namespace ICCD.UltimatePriceBot.App;
 /// </summary>
 public sealed class Program
 {
+    private static string _appEnvironment = default!;
+
+    private static bool? _isDevelopment;
+
+    private readonly IConfiguration _configuration;
+
     private Program()
     {
+        _appEnvironment = Environment.GetEnvironmentVariable("APP_ENVIRONMENT") ?? "Production";
+
+        _configuration = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", true)
+            .AddJsonFile($"appsettings.{_appEnvironment}.json", true, true)
+            .AddEnvironmentVariables("SETTING_")
+            .Build();
     }
 
     /// <summary>
-    /// Gets a value indicating whether the app environment is development.
+    /// Gets a value indicating whether the app is in development mode.
     /// </summary>
-    public static bool IsDevelopment => false;
+    public static bool IsDevelopment
+    {
+        get
+        {
+            if (_isDevelopment == null)
+            {
+                _isDevelopment = _appEnvironment.Equals("Development", StringComparison.InvariantCultureIgnoreCase);
+            }
+
+            return _isDevelopment.Value;
+        }
+    }
 
     private static void Main()
         => new Program().MainAsync().GetAwaiter().GetResult();
 
-    private static ServiceProvider ConfigureServices()
+    private ServiceProvider ConfigureServices()
     {
         return new ServiceCollection()
             .AddSingleton(new DiscordSocketConfig
@@ -46,31 +76,37 @@ public sealed class Program
             .AddSingleton<NameUpdateService>()
             .AddSingleton(typeof(IPriceDataSource), (x) =>
             {
-                _ = uint.TryParse(Environment.GetEnvironmentVariable("DATA_SOURCE_ID"), out var dataSourceId);
-                var apiKey = Environment.GetEnvironmentVariable("DATA_SOURCE_API_KEY");
+                var dataProviderOptions = x.GetRequiredService<IOptionsSnapshot<DataProviderOptions>>();
+                var coinGeckoOptions = dataProviderOptions.Get(DataProviderOptions.CoinGecko);
+                var coinMarketCapOptions = dataProviderOptions.Get(DataProviderOptions.CoinMarketCap);
 
-                // CoinGecko
-                if (dataSourceId == 0)
+                if (coinGeckoOptions.Enabled)
                 {
                     return new CoinGeckoDataSource();
                 }
-
-                // CoinMarketCap
-                else if (dataSourceId == 1)
+                else if (coinMarketCapOptions.Enabled)
                 {
-                    if (string.IsNullOrEmpty(apiKey))
+                    if (string.IsNullOrEmpty(coinMarketCapOptions.ApiKey))
                     {
-                        throw new ApplicationException("API Key is not specified.");
+                        throw new ApplicationException("API Key for CoinMarketCap is not specified, please specify an API key.");
                     }
 
-                    return new CoinMarketCapDataSource(apiKey);
+                    return new CoinMarketCapDataSource(coinMarketCapOptions.ApiKey);
                 }
                 else
                 {
-                    throw new NotImplementedException($"Data Source with ID {dataSourceId} is not implemented.");
+                    throw new NotImplementedException($"No enabled data provider found. Please enable a DataProvider in the application settings.");
                 }
             })
             .AddSingleton<PriceDataService>()
+            .AddSingleton(_configuration)
+            .AddOptions()
+            .Configure<AppSettings>(_configuration)
+            .Configure<CommandOptions>(CommandOptions.PriceCombined, _configuration.GetSection($"Commands:{CommandOptions.PriceCombined}"))
+            .Configure<CommandOptions>(CommandOptions.PriceIota, _configuration.GetSection($"Commands:{CommandOptions.PriceIota}"))
+            .Configure<CommandOptions>(CommandOptions.PriceShimmer, _configuration.GetSection($"Commands:{CommandOptions.PriceShimmer}"))
+            .Configure<DataProviderOptions>(DataProviderOptions.CoinGecko, _configuration.GetSection($"DataProviders:{DataProviderOptions.CoinGecko}"))
+            .Configure<DataProviderOptions>(DataProviderOptions.CoinMarketCap, _configuration.GetSection($"DataProviders:{DataProviderOptions.CoinMarketCap}"))
             .BuildServiceProvider();
     }
 
@@ -82,12 +118,15 @@ public sealed class Program
         client.Log += LogAsync;
         services.GetRequiredService<CommandService>().Log += LogAsync;
 
-        await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("TOKEN"));
+        await client.LoginAsync(TokenType.Bot, _configuration.GetValue<string>("BotToken"));
         await client.StartAsync();
 
         await services.GetRequiredService<CommandHandlingService>().InitializeAsync();
 
-        await services.GetRequiredService<NameUpdateService>().StartAsync();
+        if (_configuration.GetValue<bool>("EnableNameUpdateService"))
+        {
+            await services.GetRequiredService<NameUpdateService>().StartAsync();
+        }
 
         await Task.Delay(Timeout.Infinite);
     }

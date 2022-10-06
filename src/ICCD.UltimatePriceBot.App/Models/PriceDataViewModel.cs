@@ -196,6 +196,11 @@ public class PriceDataViewModel
             sbDescription.AppendLine($"``1H: {vm.PriceChangePercentage1Hour.GetDisplayString("N2")}%``");
             sbDescription.AppendLine($"``24H: {vm.PriceChangePercentage24Hours.GetDisplayString("N2")}%``");
             sbDescription.AppendLine($"``MCAP: ${vm.MarketCapUsd.GetDisplayString("N2")}``");
+            foreach (var relation in vm.Relations)
+            {
+                sbDescription.AppendLine($"``{relation.Key.ToUpperInvariant()}: {relation.Value.GetDisplayString("N4")}``");
+            }
+
             /*sbDescription.AppendLine($"``VOL: ${vm.TotalVolumeUsd.GetDisplayString("N2")}``");*/
             var description = sbDescription.ToString();
 
@@ -247,7 +252,7 @@ public class PriceDataViewModel
             var sb = new StringBuilder();
             foreach (var relation in Relations)
             {
-                sb.AppendLine($"``{relation.Key}: {relation.Value.GetDisplayString("N4")}``");
+                sb.AppendLine($"``{relation.Key.ToUpperInvariant()}: {relation.Value.GetDisplayString("N4")}``");
             }
 
             eb = eb.AddField("Relations", sb.ToString(), false);

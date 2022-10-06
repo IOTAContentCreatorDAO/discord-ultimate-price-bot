@@ -32,8 +32,9 @@ Docker is the only supported way to deploy the bot.
 3. Work on
 4. ???
 5. Profit
-> Use ``appsettings.Development.json`` to set development specific overrides.
-> **Please help us to make the developer experience work in other IDE's, it is greatly appreciated!**
+
+Use ``appsettings.Development.json`` to set development specific overrides.  
+**Please help us to make the developer experience work in other IDE's, it is greatly appreciated!**
 
 ## Caveats, Known Issues, and Limitations
 - The bot's error handling needs a bit of work, logging is not implemented and the bot might just crash on configuration error. Make sure your Discord bot token and price data source API key is correct.

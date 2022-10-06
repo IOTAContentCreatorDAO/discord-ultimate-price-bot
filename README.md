@@ -41,4 +41,5 @@ Use ``appsettings.Development.json`` to set development specific overrides.
 - The bot's price requesting implementation needs some work and it might trigger the CoinMarketCap API limit very fast, do use CoinGecko if you expect frequent price requests.
 - The price cache and command cooldown is currently hardcoded, if you need to change it, you can find the respective lines in ``PriceService.cs`` and ``PriceModule.cs``
 - The bot currently uses the [Discord.Net Text Command Service](https://discordnet.dev/guides/text_commands/intro.html), which is fine, however it does not support SlashCommand or interactions, so we might need to implement the [Interaction Framework](https://discordnet.dev/guides/int_framework/intro.html).
-> **Please submit a pull request to fix any of the issues!**
+
+**Please submit a pull request to fix any of the issues!**

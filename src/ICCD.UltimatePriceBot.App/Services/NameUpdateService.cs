@@ -1,17 +1,14 @@
 // <copyright file="NameUpdateService.cs" company="IOTA Content Creator DAO LLC">
 // Copyright (c) IOTA Content Creator DAO LLC 2022. All rights reserved.
-// Thanks to:
-// Patrick -Pathin- Fischer (pfischer@daobee.org)
 // Any illegal reproduction of this content will result in immediate legal action.
 // </copyright>
 
-using System.Runtime.InteropServices;
 using System.Text;
 using Discord;
 using Discord.WebSocket;
 using ICCD.UltimatePriceBot.App.Extensions;
 using ICCD.UltimatePriceBot.App.Models;
-using ReentrantAsyncLock;
+using ICCD.UltimatePriceBot.App.Services.PriceData;
 
 namespace ICCD.UltimatePriceBot.App.Services;
 
@@ -20,13 +17,15 @@ namespace ICCD.UltimatePriceBot.App.Services;
 /// </summary>
 public class NameUpdateService
 {
-    private readonly Dictionary<string, uint> _updateIntervals = new Dictionary<string, uint>(StringComparer.InvariantCultureIgnoreCase);
+    private readonly Dictionary<string, uint> _updateIntervals = new(StringComparer.InvariantCultureIgnoreCase);
     private readonly DiscordSocketClient _client;
-    private readonly PriceDataService _priceDataService;
-    private readonly string _statusLineInfo = "Powered by the ICCD";
-    private Task _workerTask;
     private readonly ReentrantAsyncLock.ReentrantAsyncLock _lock = new();
-    private CancellationTokenSource _cancellationTokenSource;
+    private readonly PriceDataService _priceDataService;
+    private Task? _workerTask;
+    private CancellationTokenSource? _cancellationTokenSource;
+    private int? _currentTokenIx = null;
+    private DateTime? _lastChange = null;
+    private PriceDataViewModel? _lastPriceEntry = null;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NameUpdateService"/> class.
@@ -43,8 +42,14 @@ public class NameUpdateService
 
         _client = client;
         _priceDataService = priceDataService;
+        ResetPriceInfo().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Start the name update service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <exception cref="ApplicationException">Thrown when the task was already started.</exception>
     public async Task StartAsync()
     {
         await using (await _lock.LockAsync(CancellationToken.None))
@@ -52,7 +57,6 @@ public class NameUpdateService
             if (_workerTask != null && !_workerTask.IsFaulted && !_workerTask.IsCanceled && !_workerTask.IsCompleted)
             {
                 throw new ApplicationException("Task already started.");
-                return;
             }
 
             _cancellationTokenSource = new CancellationTokenSource();
@@ -60,29 +64,35 @@ public class NameUpdateService
         }
     }
 
+    /// <summary>
+    /// Stops the name update service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <exception cref="ApplicationException">Thrown when the task was already stopped.</exception>
     public async Task StopAsync()
     {
         await using (await _lock.LockAsync(CancellationToken.None))
         {
-            if (_workerTask == null || _workerTask.IsCanceled || _workerTask.IsFaulted)
+            if (_cancellationTokenSource == null || _workerTask == null || _workerTask.IsCanceled || _workerTask.IsFaulted)
             {
                 throw new ApplicationException("Task not started.");
-                return;
             }
 
             _cancellationTokenSource.Cancel();
         }
     }
 
-    private int? _currentTokenIx = null;
-    private DateTime? _lastChange = null;
-    private PriceDataViewModel? _lastPriceEntry = null;
-
     private async Task ResetPriceInfo()
     {
         foreach (var guild in _client.Guilds)
         {
-            await guild.CurrentUser.ModifyAsync(x => x.Nickname = string.Empty);
+            try
+            {
+                await guild.CurrentUser.ModifyAsync(x => x.Nickname = string.Empty);
+            }
+            catch (Exception)
+            {
+            }
         }
 
         await _client.SetStatusAsync(Discord.UserStatus.Online);
@@ -119,42 +129,15 @@ public class NameUpdateService
                     {
                         var trend1HDown = priceEntry.PriceChangePercentage1Hour < 0;
                         var trend24HDown = priceEntry.PriceChangePercentage24Hours < 0;
-                        // var newNickname = $"{priceEntry.Symbol.ToUpper()}: ${priceEntry.CurrentPriceUsd.GetDiscordString("N4")}";
-                        // newNickname += trend1HDown ? " 📉" : " 📈";
 
                         var newNickname = $"{priceEntry.Name} #{priceEntry.Rank.GetDisplayString()}";
 
                         var sb = new StringBuilder();
                         sb = sb.Append($"${priceEntry.CurrentPriceUsd.GetDisplayString("N4")} ");
-
-                        if (trend24HDown)
-                        {
-                            sb = sb.Append('⇘');
-                        }
-                        else
-                        {
-                            sb = sb.Append('⇗');
-                        }
+                        sb = trend24HDown ? sb.Append('⬊') : sb.Append('⬈');
                         sb.Append($"24H: {priceEntry.PriceChangePercentage24Hours.GetDisplayString("N2")}%");
-                        // sb = sb.Append($" 24H: {priceEntry.PriceChangePercentage24Hours.GetDiscordString("N2")}%");
-                        // if (trend24HDown)
-                        // {
-                        //     sb = sb.Append("↘");
-                        // }
-                        // else
-                        // {
-                        //     sb = sb.Append("↗");
-                        // }
-                        // sb = sb.Append($"1H: {priceEntry.PriceChangePercentage1Hour.GetDiscordString("N2")}%");
-                        // if (trend1HDown)
-                        // {
-                        //     sb = sb.Append("↘");
-                        // }
-                        // else
-                        // {
-                        //     sb = sb.Append("↗");
-                        // }
                         var newStatus = sb.ToString();
+
                         foreach (var guild in _client.Guilds)
                         {
                             try
@@ -168,6 +151,7 @@ public class NameUpdateService
                             {
                             }
                         }
+
                         await _client.SetGameAsync(newStatus, null, Discord.ActivityType.Playing);
 
                         if (trend24HDown)

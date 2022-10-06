@@ -10,6 +10,9 @@ insert_final_newline = false
 trim_trailing_whitespace = true
 # (Please don't specify an indent_size here; that has too many unintended consequences.)
 
+[*.md]
+trim_trailing_whitespace = false
+
 # Code files
 [*.{cs,csx,vb,vbx}]
 indent_size = 4

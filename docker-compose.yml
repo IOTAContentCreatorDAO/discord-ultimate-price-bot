@@ -4,8 +4,9 @@ version: '3.4'
 services:
   ultimatepricebot:
     image: ultimatepricebot
+    restart: always
     build:
       context: .
       dockerfile: src/ICCD.UltimatePriceBot.App/Dockerfile
-    env_file:
-      - .env
+    environment:
+      - APP_ENVIRONMENT=Production

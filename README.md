@@ -6,20 +6,20 @@ A simple discord bot to display the price of crypto tokens, written in C#.
 Docker is the only supported way to deploy the bot.
 ### Requirements
 - [docker](https://docs.docker.com/engine/install/)
-- [docker compose plugin](https://docs.docker.com/compose/install/)
+- [docker compose](https://docs.docker.com/compose/install/)
 
 ### How to run
 1. Clone this repository recursively: ``git clone --recursive --depth 1 https://github.com/icc-dao/discord-ultimate-price-bot``
 2. Create an ``appsettings.json`` file in the bot's root directory, you can find and example in the bot's root directory or here: [appsettings.Example.json](https://raw.githubusercontent.com/icc-dao/discord-ultimate-price-bot/main/appsettings.Example.json).
 3. Configure ``appsettings.json`` to fit your needs.
-4. Build and run the bot by issuing ``docker compose up -d --build`` in the bot's root directory.
+4. Build and run the bot by issuing ``docker-compose up -d --build`` in the bot's root directory.
 
 ### How to stop
-1. To stop the bot and issue ``docker compose down`` in the bot's root directory.
+1. To stop the bot and issue ``docker-compose down`` in the bot's root directory.
 
 ### How to update
 1. Update your git repository: ``git pull``
-2. Build and run the bot again: ``docker compose up -d --build``
+2. Build and run the bot again: ``docker-compose up -d --build``
 
 ## **Developing the bot**
 ### Requirements

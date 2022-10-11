@@ -183,7 +183,7 @@ public class NameUpdateService
                     }
                     finally
                     {
-                        System.Threading.Thread.Sleep(100);
+                        System.Threading.Thread.Sleep(500);
                     }
                 }
             },

@@ -108,78 +108,83 @@ public class NameUpdateService
             {
                 while (true)
                 {
-                    if (cancellationToken.IsCancellationRequested)
+                    try
                     {
-                        try
-                        {
-                            await ResetPriceInfo();
-                        }
-                        finally
-                        {
-                            cancellationToken.ThrowIfCancellationRequested();
-                        }
-                    }
-
-                    var tokenKeys = _updateIntervals.Keys.ToList();
-                    var currentToken = _currentTokenIx != null ? tokenKeys[_currentTokenIx.Value] : tokenKeys[0];
-                    var priceEntry = await _priceDataService.GetPriceDataAsync(currentToken);
-                    var priceUpdated = _lastPriceEntry?.CreatedDate != priceEntry.CreatedDate;
-
-                    if (priceUpdated)
-                    {
-                        var trend1HDown = priceEntry.PriceChangePercentage1Hour < 0;
-                        var trend24HDown = priceEntry.PriceChangePercentage24Hours < 0;
-
-                        var newNickname = $"{priceEntry.Name} #{priceEntry.Rank.GetDisplayString()}";
-
-                        var sb = new StringBuilder();
-                        sb = sb.Append($"${priceEntry.CurrentPriceUsd.GetDisplayString("N4")} ");
-                        sb = trend24HDown ? sb.Append('⬊') : sb.Append('⬈');
-                        sb.Append($"24H: {priceEntry.PriceChangePercentage24Hours.GetDisplayString("N2")}%");
-                        var newStatus = sb.ToString();
-
-                        foreach (var guild in _client.Guilds)
+                        if (cancellationToken.IsCancellationRequested)
                         {
                             try
                             {
-                                if (guild.CurrentUser.Nickname == null || !guild.CurrentUser.Nickname.Equals(newNickname))
+                                await ResetPriceInfo();
+                            }
+                            finally
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                            }
+                        }
+
+                        var tokenKeys = _updateIntervals.Keys.ToList();
+                        var currentToken = _currentTokenIx != null ? tokenKeys[_currentTokenIx.Value] : tokenKeys[0];
+                        var priceEntry = await _priceDataService.GetPriceDataAsync(currentToken);
+                        var priceUpdated = _lastPriceEntry?.CreatedDate != priceEntry.CreatedDate;
+
+                        if (priceUpdated)
+                        {
+                            var trend1HDown = priceEntry.PriceChangePercentage1Hour < 0;
+                            var trend24HDown = priceEntry.PriceChangePercentage24Hours < 0;
+
+                            var newNickname = $"{priceEntry.Name} #{priceEntry.Rank.GetDisplayString()}";
+
+                            var sb = new StringBuilder();
+                            sb = sb.Append($"${priceEntry.CurrentPriceUsd.GetDisplayString("N4")} ");
+                            sb = trend24HDown ? sb.Append('⬊') : sb.Append('⬈');
+                            sb.Append($"24H: {priceEntry.PriceChangePercentage24Hours.GetDisplayString("N2")}%");
+                            var newStatus = sb.ToString();
+
+                            foreach (var guild in _client.Guilds)
+                            {
+                                try
                                 {
-                                    await guild.CurrentUser.ModifyAsync(x => x.Nickname = newNickname);
+                                    if (guild.CurrentUser.Nickname == null || !guild.CurrentUser.Nickname.Equals(newNickname))
+                                    {
+                                        await guild.CurrentUser.ModifyAsync(x => x.Nickname = newNickname);
+                                    }
+                                }
+                                catch (Exception)
+                                {
                                 }
                             }
-                            catch (Exception)
+
+                            await _client.SetGameAsync(newStatus, null, Discord.ActivityType.Playing);
+
+                            if (trend24HDown)
                             {
+                                await _client.SetStatusAsync(UserStatus.DoNotDisturb);
+                            }
+                            else
+                            {
+                                await _client.SetStatusAsync(UserStatus.Online);
+                            }
+
+                            _lastPriceEntry = priceEntry;
+                        }
+
+                        if (_lastChange == null || _currentTokenIx == null || DateTime.Now - _lastChange > TimeSpan.FromMilliseconds(_updateIntervals[_updateIntervals.Keys.ToList()[_currentTokenIx.Value]]))
+                        {
+                            _lastChange = DateTime.Now;
+                            if (_currentTokenIx == null)
+                            {
+                                _currentTokenIx = 0;
+                            }
+                            else
+                            {
+                                _currentTokenIx = _currentTokenIx + 1 < _updateIntervals.Keys.Count ? _currentTokenIx + 1 : 0;
                             }
                         }
-
-                        await _client.SetGameAsync(newStatus, null, Discord.ActivityType.Playing);
-
-                        if (trend24HDown)
-                        {
-                            await _client.SetStatusAsync(UserStatus.DoNotDisturb);
-                        }
-                        else
-                        {
-                            await _client.SetStatusAsync(UserStatus.Online);
-                        }
-
-                        _lastPriceEntry = priceEntry;
                     }
-
-                    if (_lastChange == null || _currentTokenIx == null || DateTime.Now - _lastChange > TimeSpan.FromMilliseconds(_updateIntervals[_updateIntervals.Keys.ToList()[_currentTokenIx.Value]]))
+                    finally
                     {
-                        _lastChange = DateTime.Now;
-                        if (_currentTokenIx == null)
-                        {
-                            _currentTokenIx = 0;
-                        }
-                        else
-                        {
-                            _currentTokenIx = _currentTokenIx + 1 < _updateIntervals.Keys.Count ? _currentTokenIx + 1 : 0;
-                        }
+                        System.Threading.Thread.Sleep(100);
                     }
-
-                    System.Threading.Thread.Sleep(100);
                 }
             },
             cancellationToken);
